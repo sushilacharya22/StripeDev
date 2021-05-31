@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html  manifest="manifest.appcache">
+<head>
+<meta charset="ISO-8859-1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Insert title here</title>
+<link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+<script type="text/javascript" src="js/jquery.js"></script>
+<script type="text/javascript" src="https://js.stripe.com/v3/"></script>
+<script type="text/javascript">
+var stripe = Stripe('pk_test_x1pkK0Aaj8wSxfVWTED1aj9t');
+//stripe.setPublishableKey('pk_test_x1pkK0Aaj8wSxfVWTED1aj9t');
+</script>
+
+<style type="text/css" media="screen">
+    .has-error input {
+      border-width: 2px;
+    }
+
+    .validation.text-danger:after {
+      content: 'Validation failed';
+    }
+
+    .validation.text-success:after {
+      content: 'Validation passed';
+    }
+  </style>
+  
+</head>
+<body>
+
+<form action="GetToken" method="POST" id="payment-form">
+  <span class="payment-errors"></span>
+  <div class="col-lg-3 form-row">
+    <label for="card-element">
+      Credit or debit card
+    </label>
+    <div id="card-element">
+      <!-- A Stripe Element will be inserted here. -->
+    </div>
+
+    <!-- Used to display form errors. -->
+    <div id="card-errors" role="alert"></div>
+  </div>
+  
+  <div class="col-lg-12">
+  	<button type="submit" class="btn btn-primary">Submit Payment</button>
+  </div>
+</form>
+<div class="col-lg-12" id="secure_container"></div>
+<div class="col-lg-12" id="get_customer">
+	<button class="btn btn-primary" type="button" onclick="GetCustomer('cus_HChHi4IHJVj8W1')">Get Customer</button>
+</div>	
+
+<div class="col-lg-12">
+	<button class="btn btn-primary" type="button" onclick="GetCountrySpec()">GetCountrySpec</button>
+</div>	
+
+<div class="row">
+	<div class="col-lg-12">
+		<form class="form-group" id="account-form" onsubmit="createBankAccount()">
+			<fieldset>
+				<label>Full Name</label>	
+				<input type="text" id="name" placeholder="full name...">
+			</fieldset>
+			<fieldset>
+				<label>Email</label>	
+				<input type="text" id="email" placeholder="email">
+			</fieldset>
+			<fieldset>
+				<label>Account Number</label>	
+				<input type="text" id="account_number" value="000123456" placeholder="account number">
+			</fieldset>
+			<fieldset>
+				<label>Routing Number</label>	
+				<input type="text" id="routing_number" value="1100-000" placeholder="routing number">
+			</fieldset>		
+			<div class="col-lg-12">
+				<button class="btn btn-primary" type="submit">Create Account</button>
+			</div>	
+		</form>
+	</div>
+</div>
+<br>
+<div class="col-lg-12">
+	<button class="btn btn-primary" type="button" onclick="retrieveAccount('acct_1IvzkY2HxnTf73Vl')">Get Account</button>
+</div>	
+
+
+<script>
+    jQuery(function($) {
+      
+      $.fn.toggleInputError = function(erred) {
+        this.parent('.form-group').toggleClass('has-error', erred);
+        return this;
+      };
+
+      $('form').submit(function(e) {
+        e.preventDefault();
+
+        $('.validation').removeClass('text-danger text-success');
+        $('.validation').addClass($('.has-error').length ? 'text-danger' : 'text-success');
+      });
+
+    });
+  </script>
+
+<script type="text/javascript">
+var elements = stripe.elements();
+var token;
+var paymentMethod = null;
+
+var paymentIntent = null;
+
+// Custom styling can be passed to options when creating an Element.
+// (Note that this demo uses a wider set of styles than the guide below.)
+var style = {
+  base: {
+    color: '#32325d',
+    lineHeight: '18px',
+    fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
+    fontSmoothing: 'antialiased',
+    fontSize: '16px',
+    '::placeholder': {
+      color: '#f5b041'
+    }
+  },
+  invalid: {
+    color: '#fa755a',
+    iconColor: '#fa755a'
+  }
+};
+
+// Create an instance of the card Element.
+card = elements.create('card', {style: style});
+
+// Add an instance of the card Element into the `card-element` <div>.
+card.mount('#card-element');  
+// Handle real-time validation errors from the card Element.
+card.addEventListener('change', function(event) {
+  var displayError = document.getElementById('card-errors');
+  if (event.error) {
+    displayError.textContent = event.error.message;
+    $('#card-errors').addClass("alert alert-danger");
+  } else {
+	  $('#card-errors').removeClass("alert alert-danger");
+	  displayError.textContent = '';	    	    
+  }
+});
+
+var form = document.getElementById('payment-form');
+form.addEventListener('submit', function(event) {
+  event.preventDefault();
+
+  stripe.createPaymentMethod({
+	    type: 'card',
+	    card: card,
+	    billing_details: {
+	      name: 'Jenny Rosen',
+	    },
+	  })
+	  .then(function(result) {	    
+	    if (result.error) {
+	      // Inform the user if there was an error.
+	      var errorElement = document.getElementById('card-errors');
+	      errorElement.textContent = result.error.message;
+	    } else {
+	    	console.log(result.paymentMethod);
+			paymentMethod = result.paymentMethod;
+			AddStripeCustomer(paymentMethod);	
+	      // Send the token to your server.	      
+	    }
+	  });  
+  
+});
+
+function stripeTokenHandler(paymentMethodId) {
+	  // Insert the token ID into the form so it gets submitted to the server
+	  var form = document.getElementById('payment-form');
+	  /* var hiddenInput = document.createElement('input');
+	  hiddenInput.setAttribute('type', 'hidden');
+	  hiddenInput.setAttribute('name', 'stripeToken');
+	  hiddenInput.setAttribute('value', token.id);
+	  console.log(token.id);
+	  form.appendChild(hiddenInput);
+	  console.log(form); */
+	  
+	  /* var paymentMethodInput = document.createElement('input');
+	  console.log(form);
+	  paymentMethodInput.setAttribute('type', 'hidden');
+	  paymentMethodInput.setAttribute('name', 'paymentMethod');
+	  paymentMethodInput.setAttribute('value', paymentMethod.id);
+	   */
+	/*   form.appendChild(paymentMethodInput);
+	  console.log(form); */
+	  // Submit the form
+	  //form.submit();
+	  console.log("paymentMethodId 1- " + paymentMethodId)
+	  this.paymentMethod = paymentMethod;
+	  var xhr = new XMLHttpRequest();
+	  xhr.open("POST", "GetToken?paymentMethod="+paymentMethodId); 
+	  xhr.onload = function(event){ 	
+		  //$("#secure_container").show();
+		  paymentIntent = JSON.parse(xhr.response);
+		  console.log("paymentIntent - " + paymentIntent);
+		  if(paymentIntent.status == "requires_action" && paymentIntent.next_action.redirect_to_url.url != null){
+			  invoke3DSecure(paymentIntent);
+		  }
+		  if(paymentIntent.status == "succeeded"){
+			  console.log("here1");			  
+		  } else {
+			  console.log(paymentIntent.status);
+		  }
+	  }; 
+	  // or onerror, onabort
+	  xhr.send($(form));
+}
+
+var secure_container = document.getElementById('secure_container');
+
+function invoke3DSecure(paymentIntent){
+	  console.log(paymentIntent.next_action.redirect_to_url.url); 
+	  console.log(secure_container);
+	  var iframe = document.createElement('iframe');
+	  iframe.src = paymentIntent.next_action.redirect_to_url.url;
+	  iframe.width = 600;
+	  iframe.height = 400;
+	  secure_container.appendChild(iframe);
+	  listenTo3dUI();
+}
+
+window.top.postMessage('3DS-authentication-complete');
+
+function on3DSComplete() {
+	  // Hide the 3DS UI
+	  $("#secure_container iframe").remove();
+	  console.log(paymentIntent);
+	  // Check the PaymentIntent
+	  stripe.retrievePaymentIntent(paymentIntent.client_secret)
+	    .then(function(result) {
+	      if (result.error) {
+	        // PaymentIntent client secret was invalid
+	    	  console.log("PaymentIntent client secret was invalid");
+	      } else {
+	        if (result.paymentIntent.status === 'succeeded') {
+	        	console.log("Show your customer that the payment has succeeded");
+	        } else if (result.paymentIntent.status === 'requires_payment_method') {
+	          console.log("Authentication failed, prompt the customer to enter another payment method");
+	        }
+	      }
+	    });
+}
+
+function listenTo3dUI(){
+	console.log("listen");
+	window.addEventListener('message', function(ev) {
+		  console.log("heard");
+		  console.log(ev);
+		  if (ev.data === '3DS-authentication-complete') {
+			  console.log("heardconfirm");
+		    on3DSComplete();
+		  }
+		}, false);
+}
+
+function AddStripeCustomer(paymentMethod){	
+	this.paymentMethod = paymentMethod;
+	console.log(paymentMethod);
+	var paymentMethodId = this.paymentMethod.id;
+	var xhr = new XMLHttpRequest();
+	  xhr.open("POST", "AddStripeCustomer?paymentMethod="+this.paymentMethod.id); 
+	  xhr.onload = function(event){ 	
+		  console.log(xhr.response);
+		  console.log(paymentMethodId);		  
+		  console.log(xhr.response)
+		  paymentIntent = JSON.parse(xhr.response);
+		  console.log(paymentIntent)
+		  if(paymentIntent.status == "requires_action" && paymentIntent.next_action.redirect_to_url.url != null){
+			  invoke3DSecure(paymentIntent);
+		  }
+		  if(paymentIntent.status == "succeeded"){
+			  console.log("here1");			  
+		  } else {
+			  console.log(paymentIntent.status);
+		  }
+		  //stripeTokenHandler(paymentMethodId);
+	  }; 
+	  // or onerror, onabort
+	  xhr.send({'paymentMethod':this.paymentMethod.id});
+}
+
+function GetCustomer(customer){
+	this.customer = customer;
+	console.log(this.customer);
+	var xhr = new XMLHttpRequest();
+	  xhr.open("POST", "GetCustomer?customer="+this.customer); 
+	  xhr.onload = function(event){ 	
+		  console.log(JSON.parse(xhr.response));
+	  }; 
+	  // or onerror, onabort
+	  xhr.send();
+}
+
+function GetCountrySpec(){
+	var xhr = new XMLHttpRequest();
+	  xhr.open("POST", "GetCountrySpec"); 
+	  xhr.onload = function(event){ 	
+		  console.log(xhr.response);
+	  }; 
+	  // or onerror, onabort
+	  xhr.send();
+}
+
+function createBankAccount(){
+	
+	var account = document.getElementById('account_number');
+	var routing = document.getElementById('routing_number');
+	var name = document.getElementById("name");
+	var email = document.getElementById("email");
+	console.log(account.value);
+	console.log(routing.value);
+	console.log(name.value);
+	
+	return stripe.createToken('bank_account', {
+		country: 'SG',
+		currency: 'sgd',
+		account_number: account.value,
+		routing_number: routing.value,
+		account_holder_type: 'individual',
+		account_holder_name: name.value,		
+	}).then(function(response){
+		console.log(response);
+		createAccount(response.token.id);
+	});
+}
+
+function  createAccount(bankToken){
+	var xhr = new XMLHttpRequest();
+	  xhr.open("POST", "GetCountrySpec?token="+bankToken); 
+	  xhr.onload = function(event){ 	
+		  console.log(xhr.response);
+	  }; 
+	  // or onerror, onabort
+	  xhr.send();
+}
+
+function retrieveAccount(accountId){
+	var xhr = new XMLHttpRequest();
+	  xhr.open("POST", "GetAccount?accountId="+accountId); 
+	  xhr.onload = function(event){ 	
+		  console.log(xhr.response);
+	  }; 
+	  // or onerror, onabort
+	  xhr.send();
+}
+
+
+</script>
+</body>
+</html>
