@@ -11,6 +11,9 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Account;
@@ -51,14 +54,13 @@ public class GetAccount extends HttpServlet {
 			e.printStackTrace();
 		}
 		
-		System.out.println(account);
-		System.out.println(account.getDetailsSubmitted());
-		System.out.println(account.getRequirements());
-		System.out.println(account.getRequirements().getCurrentlyDue());
-		System.out.println(account.getRequirements().getCurrentlyDue().isEmpty());
-		System.out.println(account.getRequirements().getEventuallyDue());
-		System.out.println(account.getRequirements().getEventuallyDue().isEmpty());
-		System.out.println(account.getRequirements().getPendingVerification());
+		String externalSource = account.getExternalAccounts().toJson();
+		
+		JSONObject jsonObj = new JSONObject(externalSource.toString());
+		
+		JSONArray arr = jsonObj.getJSONArray("data");
+		
+		System.out.println(arr);
 		
 		Map<String, Object> params1 = new HashMap<>();
 		params1.put("account", account.getId());
